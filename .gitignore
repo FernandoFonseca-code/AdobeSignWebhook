@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+publish/
+.vs/
+*.user
+*.suo
+
+# Licensed Hyland assemblies: each site supplies its own (see AdobeSign.OnBase.Updater/lib/OnBase/README.md)
+AdobeSign.OnBase.Updater/lib/OnBase/*.dll
+
+# Site-specific settings (Document Types, keyword names, secrets). Keep these on your server only.
+appsettings.Production.json
+appsettings.*.local.json

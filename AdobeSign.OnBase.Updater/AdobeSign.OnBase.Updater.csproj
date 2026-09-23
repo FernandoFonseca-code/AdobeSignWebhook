@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Hyland.Unity.dll (25.1) only supports .NET Framework 4.8, so the OnBase calls live in this small console app. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <!-- The Hyland assemblies are licensed and not in the repository; copy them from your OnBase installation (see lib\OnBase\README.md). -->
+  <ItemGroup>
+    <Reference Include="Hyland.Unity">
+      <HintPath>lib\OnBase\Hyland.Unity.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <!-- Runtime dependency of Hyland.Unity; Application.Connect fails without it. -->
+    <Reference Include="Hyland.Types">
+      <HintPath>lib\OnBase\Hyland.Types.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Fail early with a clear message instead of dozens of "type or namespace Hyland could not be found" errors. -->
+  <Target Name="CheckOnBaseAssemblies" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)\lib\OnBase\Hyland.Unity.dll') Or !Exists('$(MSBuildProjectDirectory)\lib\OnBase\Hyland.Types.dll')"
+           Text="Hyland.Unity.dll and Hyland.Types.dll are missing from $(MSBuildProjectDirectory)\lib\OnBase. Copy them from your OnBase installation (see lib\OnBase\README.md)." />
+  </Target>
+
+</Project>

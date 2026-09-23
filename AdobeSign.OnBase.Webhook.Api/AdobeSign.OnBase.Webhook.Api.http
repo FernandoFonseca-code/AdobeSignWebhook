@@ -1,0 +1,19 @@
+@HostAddress = http://localhost:5262
+@ClientId = test-client-id
+@AdobeId = CBJCHBCAABAA-replace-with-a-real-agreement-id
+
+### Adobe Sign registration check: expect 200 and the client ID echoed back
+GET {{HostAddress}}/webhooks/adobesign
+X-AdobeSign-ClientId: {{ClientId}}
+
+### Agreement event: expect 200 and the status keyword updated in OnBase
+POST {{HostAddress}}/webhooks/adobesign
+X-AdobeSign-ClientId: {{ClientId}}
+Content-Type: application/json
+
+{
+  "event": "AGREEMENT_ACTION_COMPLETED",
+  "agreement": { "id": "{{AdobeId}}", "status": "SIGNED" }
+}
+
+###
