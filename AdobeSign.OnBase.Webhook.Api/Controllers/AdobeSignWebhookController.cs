@@ -1,4 +1,5 @@
 using AdobeSign.OnBase.Webhook.Api.AdobeSign;
+using AdobeSign.OnBase.Webhook.Api.Audit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
@@ -10,6 +11,7 @@ namespace AdobeSign.OnBase.Webhook.Api.Controllers;
 [Route("webhooks/adobesign")]
 public sealed class AdobeSignWebhookController(
     AdobeAgreementEventProcessor processor,
+    WebhookAuditLog auditLog,
     IOptions<AdobeSignOptions> options,
     ILogger<AdobeSignWebhookController> logger) : ControllerBase
 {
@@ -32,29 +34,44 @@ public sealed class AdobeSignWebhookController(
     [HttpPost]
     [Consumes("application/json")]
     [RequestSizeLimit(1_000_000)]
+    // Every call, including rejected ones, is written to the audit log.
     public async Task<IActionResult> Receive(CancellationToken cancellationToken)
     {
-        if (!TryAcceptClientId(out _))
-        {
-            return Unauthorized();
-        }
-
-        using var reader = new StreamReader(Request.Body);
-        var payload = await reader.ReadToEndAsync(cancellationToken);
+        var audit = new WebhookAuditEntry { RemoteIp = HttpContext.Connection.RemoteIpAddress?.ToString() };
         try
         {
-            await processor.ProcessAsync(payload, cancellationToken);
+            // The payload of a rejected request isn't read, so unknown callers can't fill the audit log.
+            if (!TryAcceptClientId(out _))
+            {
+                audit.OnBaseResult = $"Not sent to OnBase: request rejected, {ClientIdHeader} did not match.";
+                audit.ResponseCode = StatusCodes.Status401Unauthorized;
+                return Unauthorized();
+            }
+
+            using var reader = new StreamReader(Request.Body);
+            audit.Payload = await reader.ReadToEndAsync(cancellationToken);
+
+            await processor.ProcessAsync(audit.Payload, audit, cancellationToken);
+            audit.ResponseCode = StatusCodes.Status200OK;
             return Ok();
         }
         catch (JsonException exception)
         {
             logger.LogWarning(exception, "Invalid Adobe Sign webhook payload");
+            audit.OnBaseResult = $"Not sent to OnBase: {exception.Message}";
+            audit.ResponseCode = StatusCodes.Status400BadRequest;
             return BadRequest();
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Adobe Sign webhook processing failed");
+            audit.OnBaseResult = $"FAILED: {exception.Message}";
+            audit.ResponseCode = StatusCodes.Status500InternalServerError;
             return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+        finally
+        {
+            await auditLog.WriteAsync(audit);
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AdobeSign.OnBase.Webhook.Api.Audit;
 using AdobeSign.OnBase.Webhook.Api.OnBase;
 using Microsoft.Extensions.Options;
 
@@ -14,8 +15,9 @@ public sealed class AdobeAgreementEventProcessor(
     private readonly Dictionary<string, string> statusMap = new(options.Value.StatusMap, StringComparer.OrdinalIgnoreCase);
 
     // Reads the event, agreement ID and status from the payload, maps the status and hands it to OnBase.
+    // Records each step in the audit entry, so the audit log shows how far a failed event got.
     // Throws JsonException when the payload is not an Adobe Sign agreement event (the controller returns 400).
-    public async Task ProcessAsync(string payload, CancellationToken cancellationToken)
+    public async Task ProcessAsync(string payload, WebhookAuditEntry audit, CancellationToken cancellationToken)
     {
         using var document = JsonDocument.Parse(payload);
         var root = document.RootElement;
@@ -25,14 +27,19 @@ public sealed class AdobeAgreementEventProcessor(
         var adobeId = GetString(root, "agreement", "id");
         var agreementStatus = GetString(root, "agreement", "status");
 
+        audit.EventName = eventName;
+        audit.AdobeId = adobeId;
+        audit.AgreementStatus = agreementStatus;
+
         if (string.IsNullOrWhiteSpace(eventName) || string.IsNullOrWhiteSpace(adobeId))
         {
             throw new JsonException("Adobe Sign payload must contain an event name and agreement ID.");
         }
 
         var status = MapStatus(eventName, agreementStatus);
+        audit.OnBaseStatus = status;
 
-        await onBaseStatusUpdater.UpdateAgreementStatusAsync(adobeId, status, cancellationToken);
+        audit.OnBaseResult = await onBaseStatusUpdater.UpdateAgreementStatusAsync(adobeId, status, cancellationToken);
         logger.LogInformation("Pushed Adobe Sign event {EventName} (status {Status}) for AdobeID {AdobeId} to OnBase", eventName, status, adobeId);
     }
 

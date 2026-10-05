@@ -1,4 +1,5 @@
 using AdobeSign.OnBase.Webhook.Api.AdobeSign;
+using AdobeSign.OnBase.Webhook.Api.Audit;
 using AdobeSign.OnBase.Webhook.Api.OnBase;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,7 @@ builder.Services.Configure<OnBaseOptions>(builder.Configuration.GetSection(OnBas
 
 builder.Services.AddSingleton<IOnBaseStatusUpdater, OnBaseUpdaterProcess>();
 builder.Services.AddSingleton<AdobeAgreementEventProcessor>();
+builder.Services.AddSingleton<WebhookAuditLog>();
 
 var app = builder.Build();
 

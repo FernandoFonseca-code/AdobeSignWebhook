@@ -259,6 +259,15 @@ Set `AdobeSign__ClientId` (step 5) to the client ID Adobe Sign sends in the `X-A
 - **Keep the site and source outside the web root**, so configuration files and DLLs can't be downloaded.
 - **Watch the IIS logs** (`C:\inetpub\logs\LogFiles`) for repeated 401, 400 or 500 responses.
 
+## Audit log
+
+Every webhook call is written to `logs\adobesign-audit-yyyy-MM-dd.log` in the site folder (one file per day). Each entry shows the time, the response returned to Adobe Sign, the event, AdobeID and Adobe status, the value written to the OnBase status keyword, the OnBase server and data source used, what the updater reported (DocIDs updated, no documents found, or the error), and the payload Adobe Sign sent, indented for reading.
+
+- Request headers and the OnBase password are never logged. The payload of a request with the wrong client ID is not logged.
+- Payloads contain signer names and email addresses, so keep the folder's permissions restricted.
+- The app pool needs write access to the folder: `icacls C:\inetpub\AdobeSignWebhook\logs /grant "IIS AppPool\AdobeSignPool:(OI)(CI)M"`
+- Old files aren't deleted automatically.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

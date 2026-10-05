@@ -13,7 +13,7 @@ public sealed class OnBaseUpdaterProcess(IOptions<OnBaseOptions> options, ILogge
 
     // Starts the updater with the AdobeID and status, waits for it and throws if it fails or times out.
     // "No documents found" is only logged: retrying would not help, so the webhook still returns 200.
-    public async Task UpdateAgreementStatusAsync(string adobeId, string status, CancellationToken cancellationToken)
+    public async Task<string> UpdateAgreementStatusAsync(string adobeId, string status, CancellationToken cancellationToken)
     {
         var settings = options.Value;
 
@@ -60,10 +60,10 @@ public sealed class OnBaseUpdaterProcess(IOptions<OnBaseOptions> options, ILogge
         {
             case ExitSuccess:
                 logger.LogInformation("OnBase updater finished for AdobeID {AdobeId}: {Output}", adobeId, outputText);
-                break;
+                return outputText;
             case ExitNoDocumentsFound:
                 logger.LogWarning("No OnBase documents found for AdobeID {AdobeId}", adobeId);
-                break;
+                return $"No OnBase documents found for AdobeID {adobeId} (nothing updated).";
             default:
                 // A non-2xx response makes Adobe Sign retry the webhook.
                 throw new InvalidOperationException($"OnBase updater failed (exit code {process.ExitCode}) for AdobeID {adobeId}: {errorText}");
